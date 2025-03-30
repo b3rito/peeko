@@ -87,7 +87,7 @@ Through an injected XSS payload, peeklo establishes a WebSocket connection to a 
 
 ---
 
-### `SERVER-IP` Placeholder
+### SERVER-IP Placeholder
 
 In both `agent.js` and `control.html`, the WebSocket connection points to:
 
