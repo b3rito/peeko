@@ -87,6 +87,19 @@ Through an injected XSS payload, peeklo establishes a WebSocket connection to a 
 
 ---
 
+### `SERVER-IP` Placeholder
+
+In both `agent.js` and `control.html`, the WebSocket connection points to:
+
+```javascript
+wss://SERVER-IP:8443/ws
+```
+
+**Before deploying**, replace `SERVER-IP` with your actual IP address (e.g. `192.168.1.12` or a public IP/domain). This ensures the victim browser and control panel can communicate with your server over HTTPS.
+
+---
+
+
 ## Project Structure
 
 ```
