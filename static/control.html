@@ -112,12 +112,22 @@
       const msg = event.data;
       const interesting = ["[✅]", "[📄]", "[🟢]", "[🔴]"];
 
-      // Check the original message for interesting prefixes
-      if (interesting.some(prefix => msg.startsWith(prefix))) {
+      // If the message comes from a victim, it may start with a victim prefix, e.g. "[victim-1] "
+      // Strip that prefix if present so that we can detect the interesting prefix.
+      let toCheck = msg;
+      if (msg.startsWith("[") && msg.indexOf("]") !== -1) {
+        const firstPrefix = msg.substring(0, msg.indexOf("]") + 1);
+        if (firstPrefix.match(/^\[victim-\d+\]$/)) {
+          toCheck = msg.substring(msg.indexOf("]") + 1).trim();
+        }
+      }
+
+      // Log the message if it starts with one of the interesting prefixes
+      if (interesting.some(prefix => toCheck.startsWith(prefix))) {
         log(msg);
       }
 
-      // Use the original message for victim connection/disconnection checks
+      // Process victim connection/disconnection events using the original message
       if (msg.startsWith("[🟢] Victim connected: ")) {
         const match = msg.match(/Victim connected: (victim-\d+)/);
         if (match) addVictim(match[1]);
