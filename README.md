@@ -150,22 +150,29 @@ peeko/
 
 ---
 
-## CORS Behavior
+## CORS Behavior and Mixed Content Issues
 
-peeko uses `fetch()` from within the victim’s browser to request internal web services.  
-However, modern browsers enforce **CORS (Cross-Origin Resource Sharing)** policies that determine whether the attacker can read the response.
+peeko uses `fetch()` from within the victim’s browser to request internal web services. Modern browsers enforce **CORS (Cross-Origin Resource Sharing)** policies that determine whether the attacker can read the response.
 
-In real-world environments (e.g., internal apps during a penetration test), the outcome depends on the CORS headers:
+### CORS Scenarios
 
-| Response Header                          | Works? | Explanation                                                |
-|------------------------------------------|--------|------------------------------------------------------------|
-| `Access-Control-Allow-Origin: *`         | ✅     | You can read the full response body and status code.       |
-| _No_ `Access-Control-Allow-Origin`       | ⚠️     | The request succeeds, but the response is opaque.          |
-| Restrictive CORS (e.g., specific domains)| ❌     | The browser blocks the response or hides its contents.     |
+| Response Header                           | Works? | Explanation                                                |
+|-------------------------------------------|--------|------------------------------------------------------------|
+| `Access-Control-Allow-Origin: *`          | ✅     | You can read the full response body and status code.       |
+| *No* `Access-Control-Allow-Origin`        | ⚠️     | The request succeeds, but the response is opaque.          |
+| Restrictive CORS (e.g., specific domains) | ❌     | The browser blocks the response or hides its contents.     |
 
-### In practice
+### Mixed Content Issues
 
-During a penetration test, if you find an internal service that responds with `Access-Control-Allow-Origin: *`, then **peeko becomes a stealth proxy**, capable of exfiltrating internal data directly from the victim's browser without dropping any files or opening outbound connections.
+Because peeko’s connection to the victim’s browser is over **HTTPS**, attempting to fetch **HTTP** (non-secure) URLs may result in **mixed content errors**. In modern browsers, these errors prevent the browser from loading or reading the HTTP resource. This means:
+
+- Even if a target HTTP service would respond with useful data, the victim’s browser will block or not expose that data to your script.
+- peeko can only extract and relay content from services that are accessible over HTTPS.
+
+### In Practice
+
+During a penetration test, if you find an internal service that responds with `Access-Control-Allow-Origin: *` and is served over HTTPS, then peeko becomes a stealth proxy capable of exfiltrating internal data directly from the victim's browser without dropping any files or opening outbound connections.
+
 
 ---
 
@@ -179,5 +186,4 @@ You are responsible for your own actions.
 
 ## Authors
 
-- **b3rito** – [https://github.com/b3rito](https://github.com/b3rito)  
-- **GioPpeTto**
+Written by **b3rito** at mes3hacklab & **GioPpeTto**
