@@ -66,7 +66,6 @@
 <h1>peeko</h1>
 <p>v1.0</p>
 
-<!-- Target URL Section -->
 <!-- Victim Selector Section -->
 <div class="section">
   <label for="victimSelect">Select Victim:</label><br>
@@ -75,6 +74,7 @@
   </select>
 </div>
 
+<!-- Target URL Section -->
 <div class="section">
   <label for="url">Target URL:</label><br>
   <input id="url" placeholder="https://192.168.1.124:8080/example.html" size="60">
@@ -96,12 +96,12 @@
 <!-- Collect Browser Information Section -->
 <div class="section">
   <label>Collect Browser Information</label><br>
-  <input type="checkbox" id="info_useragent" checked> User Agent string<br>
-  <input type="checkbox" id="info_platform" checked> Platform (OS)<br>
-  <input type="checkbox" id="info_url" checked> Current URL and Referrer<br>
-  <input type="checkbox" id="info_plugins" checked> Installed Plugins<br>
+  <input type="checkbox" id="info_useragent" checked> User Agent<br>
+  <input type="checkbox" id="info_platform" checked> Platform<br>
+  <input type="checkbox" id="info_url" checked> URL + Referrer<br>
+  <input type="checkbox" id="info_plugins" checked> Plugins<br>
   <input type="checkbox" id="info_cookies" checked> Cookies<br>
-  <input type="checkbox" id="info_storage" checked> localStorage/sessionStorage<br>
+  <input type="checkbox" id="info_storage" checked> Storage<br>
   <input type="checkbox" id="autoCollect"> Auto Collect on Connect<br>
   <button onclick="collectInfo()">Collect Info</button>
 </div>
@@ -180,7 +180,10 @@ socket.onmessage = event => {
     return;
   }
 
-  log(msg);
+  // ✅ Filter out fetch errors
+  if (!msg.includes("[❌] Fetch error")) {
+    log(msg);
+  }
 };
 
 function getSelectedVictim() {
