@@ -191,7 +191,6 @@ peeko/
 ## Use Cases
 
 - Internal network mapping via XSS  
-- SSRF  
 - Browser-based pivoting  
 - Silent file delivery / JS dropper  
 
