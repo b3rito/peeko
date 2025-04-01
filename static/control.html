@@ -67,8 +67,16 @@
 <p>v1.0</p>
 
 <!-- Target URL Section -->
+<!-- Victim Selector Section -->
 <div class="section">
-  <label for="url">🎯 Target URL:</label><br>
+  <label for="victimSelect">Select Victim:</label><br>
+  <select id="victimSelect">
+    <option value="">-- No victims connected --</option>
+  </select>
+</div>
+
+<div class="section">
+  <label for="url">Target URL:</label><br>
   <input id="url" placeholder="https://192.168.1.124:8080/example.html" size="60">
   <button onclick="send()">Send</button><br>
   <input type="checkbox" id="autoTarget"> Auto Target on Connect
@@ -83,14 +91,6 @@
   <input id="ports" placeholder="80,8080,3000-3010" size="30">
   <button onclick="scan()">🔍 Start Scan</button><br>
   <input type="checkbox" id="autoScan"> Auto Scan on Connect
-</div>
-
-<!-- Victim Selector Section -->
-<div class="section">
-  <label for="victimSelect">🧍 Select Victim:</label><br>
-  <select id="victimSelect">
-    <option value="">-- No victims connected --</option>
-  </select>
 </div>
 
 <!-- Collect Browser Information Section -->
@@ -116,7 +116,7 @@
 
 <!-- Custom JS Section -->
 <div class="section">
-  <label for="customJs">🧠 Custom JavaScript to Execute:</label><br>
+  <label for="customJs">Custom JavaScript to Execute:</label><br>
   <textarea id="customJs" placeholder="e.g., alert('hello world')"></textarea><br>
   <button onclick="sendCustomJs()">Execute Custom JS</button>
   <input type="checkbox" id="autoJs"> Auto Execute on Connect
