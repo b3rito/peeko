@@ -183,14 +183,15 @@ peeko/
    - Fetch URLs  
    - Dump cookies, storage  
    - Run arbitrary JS  
-   - Exfiltrate responses  
+   - Exfiltrate responses
+   - Drop files
 
 ---
 
 ## Use Cases
 
 - Internal network mapping via XSS  
-- SSRF augmentation  
+- SSRF  
 - Browser-based pivoting  
 - Silent file delivery / JS dropper  
 
