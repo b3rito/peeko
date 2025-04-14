@@ -1,6 +1,6 @@
 ## peeko
 
-**Version:** v1.0
+**Version:** v1.1
 
 `peeko` is a browser-based XSS-powered C2 (Command and Control) tool that leverages the victim’s browser as a stealthy proxy inside internal networks.
 
